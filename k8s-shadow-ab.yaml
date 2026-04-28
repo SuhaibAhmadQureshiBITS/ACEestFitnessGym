@@ -1,0 +1,175 @@
+# ── Shadow Deployment ─────────────────────────────────────────
+# Production serves real users.
+# Shadow receives a mirrored copy of all traffic (responses ignored).
+# Requires Istio VirtualService or NGINX mirror directive for actual mirroring.
+
+# Production
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-production
+  labels:
+    app: aceest
+    env: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest
+      env: production
+  template:
+    metadata:
+      labels:
+        app: aceest
+        env: production
+    spec:
+      containers:
+        - name: aceest
+          image: aceest-fitness:latest
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Shadow (receives mirrored traffic; responses discarded)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-shadow
+  labels:
+    app: aceest
+    env: shadow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aceest
+      env: shadow
+  template:
+    metadata:
+      labels:
+        app: aceest
+        env: shadow
+    spec:
+      containers:
+        - name: aceest-shadow
+          image: aceest-fitness:latest   # point to new build tag
+          ports:
+            - containerPort: 5000
+---
+# NOTE: Wire mirroring via Istio VirtualService:
+#   spec.http[].mirror: {host: aceest-shadow}
+#   spec.http[].mirrorPercentage.value: 100
+
+---
+# ── A/B Testing Deployment ────────────────────────────────────
+# 50% traffic → Version A (control)
+# 50% traffic → Version B (experiment)
+# Split controlled via NGINX Ingress canary-weight annotation
+
+# Version A — control group
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-version-a
+  labels:
+    app: aceest
+    version: a
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aceest
+      version: a
+  template:
+    metadata:
+      labels:
+        app: aceest
+        version: a
+    spec:
+      containers:
+        - name: aceest
+          image: aceest-fitness:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: AB_VARIANT
+              value: "A"
+---
+# Version B — experiment group
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-version-b
+  labels:
+    app: aceest
+    version: b
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aceest
+      version: b
+  template:
+    metadata:
+      labels:
+        app: aceest
+        version: b
+    spec:
+      containers:
+        - name: aceest
+          image: aceest-fitness:latest   # point to new build tag
+          ports:
+            - containerPort: 5000
+          env:
+            - name: AB_VARIANT
+              value: "B"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-service-a
+spec:
+  selector:
+    app: aceest
+    version: a
+  ports:
+    - port: 80
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-service-b
+spec:
+  selector:
+    app: aceest
+    version: b
+  ports:
+    - port: 80
+      targetPort: 5000
+---
+# NGINX Ingress — 50/50 A/B split
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aceest-ab-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "50"
+spec:
+  rules:
+    - host: aceest.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aceest-service-b
+                port:
+                  number: 80

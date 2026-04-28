@@ -409,5 +409,3 @@ Example: `feat(clients): add DELETE endpoint for client removal`
 ![](screenshots/2.png)
 ![](screenshots/3.png)
 
-## GitHub Actions Screenshots
-![](screenshots/4.png)# ACEestFitnessGym

@@ -57,6 +57,11 @@ def test_add_client_success(client):
     assert res.status_code == 201
     data = json.loads(res.data)
     assert data["name"] == "Arjun"
+    payload = {"name": "Suhaib", "age": 28, "weight": 75.0, "program": "Beginner (BG)"}
+    res = client.post("/clients", json=payload)
+    assert res.status_code == 201
+    data = json.loads(res.data)
+    assert data["name"] == "Suhaib"
     assert data["calories"] == int(75.0 * 26)
 
 
@@ -67,11 +72,13 @@ def test_add_client_missing_name(client):
 
 def test_add_client_missing_program(client):
     res = client.post("/clients", json={"name": "Priya"})
+    res = client.post("/clients", json={"name": "Deepti"})
     assert res.status_code == 400
 
 
 def test_add_client_invalid_program(client):
     res = client.post("/clients", json={"name": "Priya", "program": "Yoga"})
+    res = client.post("/clients", json={"name": "Deepti", "program": "Yoga"})
     assert res.status_code == 400
 
 
@@ -81,6 +88,11 @@ def test_get_existing_client(client):
     res = client.get("/clients/Ravi")
     assert res.status_code == 200
     assert json.loads(res.data)["name"] == "Ravi"
+    payload = {"name": "Michael", "weight": 80.0, "program": "Muscle Gain (MG) - PPL"}
+    client.post("/clients", json=payload)
+    res = client.get("/clients/Michael")
+    assert res.status_code == 200
+    assert json.loads(res.data)["name"] == "Michael"
 
 
 def test_get_nonexistent_client(client):
@@ -136,12 +148,14 @@ def test_calorie_invalid_program(client):
 
 def test_save_progress(client):
     payload = {"client_name": "Arjun", "week": "Week 01", "adherence": 85}
+    payload = {"client_name": "Suhaib", "week": "Week 01", "adherence": 85}
     res = client.post("/progress", json=payload)
     assert res.status_code == 201
 
 
 def test_save_progress_missing_fields(client):
-    res = client.post("/progress", json={"client_name": "Arjun"})
+    res = client.post("/progress", json={"client_name": "Suhaib"})
+    res = client.post("/progress", json={"client_name": "Suhaib"})
     assert res.status_code == 400
 
 
@@ -151,4 +165,9 @@ def test_get_progress(client):
     client.post("/progress", json=p1)
     client.post("/progress", json=p2)
     data = json.loads(client.get("/progress/Arjun").data)
+    p1 = {"client_name": "Suhaib", "week": "Week 01", "adherence": 80}
+    p2 = {"client_name": "Suhaib", "week": "Week 02", "adherence": 90}
+    client.post("/progress", json=p1)
+    client.post("/progress", json=p2)
+    data = json.loads(client.get("/progress/Suhaib").data)
     assert len(data["progress"]) == 2
