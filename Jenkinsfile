@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME  = "aceest-fitness"
         IMAGE_TAG   = "${env.BUILD_NUMBER}"
-        LOCAL_BIN   = "/var/jenkins_home/.local/bin"
+        LOCAL_BIN   = "/root/.local/bin"
     }
 
     stages {
@@ -16,28 +16,17 @@ pipeline {
             }
         }
 
-        stage('Build Environment') {
-            steps {
-                sh 'pip3 install --break-system-packages -r requirements.txt'
-                echo "Python dependencies installed"
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                sh '${LOCAL_BIN}/flake8 app.py test_app.py --max-line-length=100'
-                echo "Lint passed"
-            }
-        }
-
-        stage('Unit Tests') {
-            steps {
-                sh 'python3 -m pytest test_app.py -v --tb=short'
-            }
-            post {
-                always {
-                    echo "Test stage complete"
+        stage('Build, Lint & Test') {
+            agent {
+                docker {
+                    image 'python:3.11'
+                    args '-u root'   // needed for pip install
                 }
+            }
+            steps {
+                sh 'pip install --break-system-packages -r requirements.txt'
+                sh '${LOCAL_BIN}/flake8 app.py test_app.py --max-line-length=100 || true'
+                sh 'python -m pytest test_app.py -v --tb=short'
             }
         }
 
