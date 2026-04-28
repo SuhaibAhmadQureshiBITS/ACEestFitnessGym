@@ -18,7 +18,7 @@ pipeline {
 
         stage('Build Environment') {
             steps {
-                sh 'pip install --break-system-packages -r requirements.txt'
+                sh 'pip3 install --break-system-packages -r requirements.txt'
                 echo "Python dependencies installed"
             }
         }
