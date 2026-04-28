@@ -26,7 +26,8 @@ spec:
     spec:
       containers:
         - name: aceest
-          image: aceest-fitness:latest
+          image: suhaibahmadqureshibits/aceest-fitness:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           readinessProbe:
@@ -58,7 +59,8 @@ spec:
     spec:
       containers:
         - name: aceest
-          image: aceest-fitness:latest   # point to new build tag
+          image: suhaibahmadqureshibits/aceest-fitness:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           readinessProbe:
