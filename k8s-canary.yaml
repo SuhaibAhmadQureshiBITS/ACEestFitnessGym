@@ -1,35 +1,41 @@
-# ── Canary Release Deployment ─────────────────────────────────
-# 9 stable pods + 1 canary pod = ~10% traffic to new version
-# Both share the same Service via app: aceest label
-# To promote canary: scale stable to 0, canary to 3
-# To rollback: kubectl scale deployment aceest-canary --replicas=0
+# ── Rolling Update Deployment ─────────────────────────────────
+# Default strategy: zero-downtime gradual pod replacement
+# Image name matches Jenkinsfile: aceest-fitness:<BUILD_NUMBER>
+# kubectl apply -f k8s-rolling.yaml
 
-# Stable (existing version — keep running)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: aceest-stable
+  name: aceest-rolling
   labels:
     app: aceest
-    track: stable
+    strategy: rolling
 spec:
-  replicas: 9
+  replicas: 3
   selector:
     matchLabels:
       app: aceest
-      track: stable
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # 1 extra pod allowed during update
+      maxUnavailable: 0  # never take a pod down before new one is ready
   template:
     metadata:
       labels:
         app: aceest
-        track: stable
     spec:
       containers:
         - name: aceest
-          image: suhaibahmadqureshibits/aceest-fitness:latest
+          image: 050916357370.dkr.ecr.ap-south-1.amazonaws.com/aceest-fitness:latest 
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
+          env:
+            - name: FLASK_APP
+              value: app.py
+            - name: FLASK_RUN_HOST
+              value: "0.0.0.0"
           readinessProbe:
             httpGet:
               path: /
@@ -59,18 +65,25 @@ spec:
     spec:
       containers:
         - name: aceest
-          image: suhaibahmadqureshibits/aceest-fitness:latest
+          image: 050916357370.dkr.ecr.ap-south-1.amazonaws.com/aceest-fitness:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
           readinessProbe:
+          livenessProbe:
             httpGet:
               path: /
               port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
 ---
-# Shared Service — routes to both stable + canary via app: aceest
 apiVersion: v1
 kind: Service
 metadata:

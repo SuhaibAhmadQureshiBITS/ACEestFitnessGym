@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: aceest
-          image: aceest-fitness:latest   # replaced by Jenkins IMAGE_TAG
+          image: 050916357370.dkr.ecr.ap-south-1.amazonaws.com/aceest-fitness:latest   # replaced by Jenkins IMAGE_TAG
           ports:
             - containerPort: 5000
           env:

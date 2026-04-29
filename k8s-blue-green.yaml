@@ -1,23 +1,7 @@
-# ── Blue-Green Deployment ─────────────────────────────────────
-# Blue = current live version (Service points here by default)
-# Green = new version standing by (no traffic until switch)
-#
-# To switch traffic to green:
-#   kubectl patch service aceest-service \
-#     -p '{"spec":{"selector":{"version":"green"}}}'
-#
-# To rollback to blue:
-#   kubectl patch service aceest-service \
-#     -p '{"spec":{"selector":{"version":"blue"}}}'
-
-# BLUE — current live
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aceest-blue
-  labels:
-    app: aceest
-    version: blue
 spec:
   replicas: 3
   selector:
@@ -31,27 +15,18 @@ spec:
         version: blue
     spec:
       containers:
-        - name: aceest
-          image: aceest-fitness:latest
-          ports:
-            - containerPort: 5000
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+      - name: aceest
+        image: 050916357370.dkr.ecr.ap-south-1.amazonaws.com/aceest-fitness:latest
+        ports:
+        - containerPort: 5000
+
 ---
-# GREEN — new version standing by
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aceest-green
-  labels:
-    app: aceest
-    version: green
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: aceest
@@ -63,18 +38,12 @@ spec:
         version: green
     spec:
       containers:
-        - name: aceest
-          image: aceest-fitness:latest   # point to new build tag
-          ports:
-            - containerPort: 5000
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+      - name: aceest
+        image: 050916357370.dkr.ecr.ap-south-1.amazonaws.com/aceest-fitness:latest
+        ports:
+        - containerPort: 5000
+
 ---
-# Service — selector set to blue by default
 apiVersion: v1
 kind: Service
 metadata:
@@ -82,9 +51,8 @@ metadata:
 spec:
   selector:
     app: aceest
-    version: blue     # patch to "green" to cut over
+    version: blue   # 👈 active version
   ports:
-    - protocol: TCP
-      port: 80
+    - port: 80
       targetPort: 5000
-  type: LoadBalancer
+  type: NodePort
